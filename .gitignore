@@ -1,0 +1,32 @@
+# C# / .NET
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+# Go
+/integration-go/main
+/integration-go/*.exe
+/integration-go/*.exe~
+/integration-go/*.dll
+/integration-go/*.so
+/integration-go/*.dylib
+/integration-go/*.test
+/integration-go/*.out
+
+# Docker / Environment
+.env
+.env.*
+!.env.example
+docker-compose.override.yml
+
+# IDEs / OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
