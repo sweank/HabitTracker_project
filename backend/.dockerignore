@@ -1,0 +1,22 @@
+# Do not send local build artifacts into Docker.
+# This is critical on Windows: obj/project.assets.json may contain
+# Visual Studio fallback paths like C:\Program Files (x86)\... which break Linux containers.
+**/bin/
+**/obj/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Local env files should not be copied into backend image
+.env
+.env.*
