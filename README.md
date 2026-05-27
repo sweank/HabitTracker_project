@@ -70,6 +70,23 @@ habit-tracker-mvp/
   .env.example
 ```
 
+
+## Важное исправление для Docker на Windows
+
+В `backend/.dockerignore` обязательно должны быть исключены `bin/` и `obj/`. Иначе Docker может скопировать внутрь Linux-контейнера локальные .NET артефакты, созданные на Windows, и `dotnet publish` упадёт с ошибкой вида:
+
+```text
+Unable to find fallback package folder 'C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages'
+```
+
+Если ошибка уже появлялась, можно также удалить локальные артефакты перед повторной сборкой:
+
+```powershell
+Get-ChildItem -Recurse -Directory -Include bin,obj | Remove-Item -Recurse -Force
+docker compose build --no-cache
+docker compose up
+```
+
 ## Настройка переменных окружения
 
 Скопируйте пример:
