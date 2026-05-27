@@ -18,17 +18,12 @@
 
 ### Go service
 
-- Telegram-команды:
-  - `/start`
-  - `/habits`
-  - `/done`
-  - `/done 1`
-  - `/stats`
-  - `/new Drink water`
+- Telegram-команды: `/start`, `/habits`, `/done`, `/done 1`, `/stats`, `/new Drink water`.
 - HTTP-клиент к C# backend.
 - Polling pending notifications из C#.
 - Отправка Telegram и email.
 - Дополнительные HTTP endpoints:
+  - `GET /health`
   - `POST /api/notifications/telegram`
   - `POST /api/notifications/email`
 
@@ -55,6 +50,7 @@ C# — source of truth. Go не считает streak и не хранит ос�
 ```text
 habit-tracker-mvp/
   backend/
+    Dockerfile
     src/
       HabitTracker.Domain/
       HabitTracker.Application/
@@ -71,7 +67,24 @@ habit-tracker-mvp/
     internal/server/
     internal/telegram/
   docker-compose.yml
+  .env.example
 ```
+
+## Настройка переменных окружения
+
+Скопируйте пример:
+
+```powershell
+copy .env.example .env
+```
+
+Для Linux/macOS:
+
+```bash
+cp .env.example .env
+```
+
+В `.env` укажите `TELEGRAM_BOT_TOKEN`, если нужен настоящий Telegram polling. Без токена Go-сервис всё равно запустит HTTP endpoints и worker, но Telegram polling будет отключён.
 
 ## Запуск через Docker Compose
 
@@ -79,24 +92,19 @@ habit-tracker-mvp/
 docker compose up --build
 ```
 
-Backend будет доступен здесь:
+После запуска:
 
 ```text
-http://localhost:5000/swagger
-```
-
-Go service будет доступен здесь:
-
-```text
-http://localhost:8081/health
+Backend Swagger: http://localhost:5000/swagger
+Go health:       http://localhost:8081/health
 ```
 
 ## Запуск C# backend вручную
 
-```bash
-cd backend/src/HabitTracker.Api
-dotnet restore
-dotnet run
+```powershell
+cd backend
+dotnet restore src/HabitTracker.Api/HabitTracker.Api.csproj
+dotnet run --project src/HabitTracker.Api/HabitTracker.Api.csproj --urls "http://localhost:5000"
 ```
 
 Swagger:
@@ -107,27 +115,48 @@ http://localhost:5000/swagger
 
 ## Запуск тестов C#
 
-```bash
+```powershell
 cd backend
-dotnet test
+dotnet test tests/HabitTracker.Tests/HabitTracker.Tests.csproj
 ```
 
 ## Запуск Go service вручную
 
+PowerShell on Windows:
+
+```powershell
+cd integration-go
+$env:BACKEND_URL="http://localhost:5000"
+$env:GO_HTTP_ADDR=":8081"
+$env:TELEGRAM_BOT_TOKEN="your-token"
+go run ./cmd/bot
+```
+
+Bash/macOS/Linux:
+
 ```bash
 cd integration-go
-go run ./cmd/bot
-```
-
-Для реального Telegram-бота нужно задать переменные окружения:
-
-```bash
-export TELEGRAM_BOT_TOKEN="your-token"
 export BACKEND_URL="http://localhost:5000"
+export GO_HTTP_ADDR=":8081"
+export TELEGRAM_BOT_TOKEN="your-token"
 go run ./cmd/bot
 ```
 
-Для email:
+Если токен не задан, Telegram polling отключается, но `GET /health`, отправка email/telegram через HTTP endpoints и notification worker остаются доступны.
+
+## Email настройки
+
+PowerShell:
+
+```powershell
+$env:SMTP_HOST="smtp.example.com"
+$env:SMTP_PORT="587"
+$env:SMTP_USERNAME="user@example.com"
+$env:SMTP_PASSWORD="password"
+$env:EMAIL_FROM="user@example.com"
+```
+
+Bash/macOS/Linux:
 
 ```bash
 export SMTP_HOST="smtp.example.com"
@@ -137,7 +166,7 @@ export SMTP_PASSWORD="password"
 export EMAIL_FROM="user@example.com"
 ```
 
-Если SMTP не настроен, email-сервис просто выводит письмо в консоль. Это удобно для демонстрации.
+Если SMTP не настроен, email-сервис выводит письмо в консоль. Это удобно для демонстрации.
 
 ## Минимальный сценарий проверки через Swagger
 
@@ -199,19 +228,20 @@ GET /api/habits/{habitId}/stats
 6. Получить уведомления, которые пора отправить:
 
 ```http
-GET /api/notification-jobs/due?before=2026-05-18T09:01:00
+GET /api/notification-jobs/due?before=2026-05-18T09:01:00Z
 ```
 
 ## Основные C# endpoints
 
 ```text
+GET  /health
 POST /api/users
-GET /api/users/by-telegram/{telegramChatId}
+GET  /api/users/by-telegram/{telegramChatId}
 POST /api/habits
-GET /api/users/{userId}/habits
+GET  /api/users/{userId}/habits
 POST /api/habits/{habitId}/completions
-GET /api/habits/{habitId}/stats
-GET /api/notification-jobs/due
+GET  /api/habits/{habitId}/stats
+GET  /api/notification-jobs/due
 POST /api/notification-jobs/{jobId}/sent
 POST /api/notification-jobs/{jobId}/failed
 ```
@@ -219,7 +249,7 @@ POST /api/notification-jobs/{jobId}/failed
 ## Основные Go endpoints
 
 ```text
-GET /health
+GET  /health
 POST /api/notifications/telegram
 POST /api/notifications/email
 ```
