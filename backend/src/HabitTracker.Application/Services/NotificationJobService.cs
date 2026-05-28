@@ -11,17 +11,20 @@ public sealed class NotificationJobService : INotificationJobService
     private readonly INotificationJobRepository _notificationJobs;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly INotificationMessageFactory _messageFactory;
 
     public NotificationJobService(
         IHabitRepository habits,
         INotificationJobRepository notificationJobs,
         IUnitOfWork unitOfWork,
-        IDateTimeProvider dateTimeProvider)
+        IDateTimeProvider dateTimeProvider,
+        INotificationMessageFactory messageFactory)
     {
         _habits = habits;
         _notificationJobs = notificationJobs;
         _unitOfWork = unitOfWork;
         _dateTimeProvider = dateTimeProvider;
+        _messageFactory = messageFactory;
     }
 
     public async Task EnsureTodayJobsAsync(CancellationToken cancellationToken = default)
@@ -46,7 +49,7 @@ public sealed class NotificationJobService : INotificationJobService
         }
 
         var scheduledAt = date.ToDateTime(habit.ReminderTime, DateTimeKind.Utc);
-        var text = $"Не забудь выполнить привычку: {habit.Title}";
+        var text = _messageFactory.BuildHabitReminder(habit, user);
 
         if (habit.NotifyInTelegram && !string.IsNullOrWhiteSpace(user.TelegramChatId))
         {
