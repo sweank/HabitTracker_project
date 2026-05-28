@@ -21,12 +21,12 @@ services:
       BACKEND_URL: "http://backend:8080"
       GO_HTTP_ADDR: ":8081"
       POLL_INTERVAL_SECONDS: "30"
-      TELEGRAM_BOT_TOKEN: "8890474626:AAHcUETrb5tdPwWQre7mB11vzggMbDIjWgs"
-      SMTP_HOST: ""
-      SMTP_PORT: "587"
-      SMTP_USERNAME: ""
-      SMTP_PASSWORD: ""
-      EMAIL_FROM: "habit-tracker@example.local"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      EMAIL_FROM: "${EMAIL_FROM:-habit-tracker@example.local}"
     depends_on:
       - backend
 
