@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -31,6 +33,26 @@ func Load() Config {
 		SMTPPassword:     getString("SMTP_PASSWORD", ""),
 		EmailFrom:        getString("EMAIL_FROM", "habit-tracker@example.local"),
 	}
+}
+
+func (c Config) Validate() error {
+	var validationErrors []string
+	if strings.TrimSpace(c.BackendURL) == "" {
+		validationErrors = append(validationErrors, "BACKEND_URL is required")
+	}
+	if strings.TrimSpace(c.HTTPAddr) == "" {
+		validationErrors = append(validationErrors, "GO_HTTP_ADDR is required")
+	}
+	if c.PollInterval <= 0 {
+		validationErrors = append(validationErrors, "POLL_INTERVAL_SECONDS must be positive")
+	}
+	if strings.TrimSpace(c.SMTPHost) != "" && strings.TrimSpace(c.EmailFrom) == "" {
+		validationErrors = append(validationErrors, "EMAIL_FROM is required when SMTP_HOST is configured")
+	}
+	if len(validationErrors) > 0 {
+		return errors.New(strings.Join(validationErrors, "; "))
+	}
+	return nil
 }
 
 func getString(key string, fallback string) string {
