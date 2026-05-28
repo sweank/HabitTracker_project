@@ -2,7 +2,10 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 type TelegramSender interface {
@@ -40,8 +43,15 @@ func (s *Server) sendTelegram(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &request) {
 		return
 	}
+	if err := requireFields(map[string]string{
+		"telegramChatId": request.TelegramChatID,
+		"text":           request.Text,
+	}); err != nil {
+		writeError(w, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
 	if err := s.telegramSender.Send(request.TelegramChatID, request.Text); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"status": "failed", "error": err.Error()})
+		writeError(w, http.StatusBadGateway, "telegram_send_failed", err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
@@ -56,8 +66,16 @@ func (s *Server) sendEmail(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &request) {
 		return
 	}
+	if err := requireFields(map[string]string{
+		"email":   request.Email,
+		"subject": request.Subject,
+		"text":    request.Text,
+	}); err != nil {
+		writeError(w, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
 	if err := s.emailSender.Send(request.Email, request.Subject, request.Text); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"status": "failed", "error": err.Error()})
+		writeError(w, http.StatusBadGateway, "email_send_failed", err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
@@ -65,11 +83,34 @@ func (s *Server) sendEmail(w http.ResponseWriter, r *http.Request) {
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_json", "message": err.Error()})
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
 		return false
 	}
 	return true
+}
+
+func requireFields(fields map[string]string) error {
+	var missing []string
+	for field, value := range fields {
+		if strings.TrimSpace(value) == "" {
+			missing = append(missing, field)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("required fields are empty: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+func writeError(w http.ResponseWriter, status int, code string, message string) {
+	if strings.TrimSpace(message) == "" {
+		message = errors.New("unknown error").Error()
+	}
+	writeJSON(w, status, map[string]string{"errorCode": code, "message": message})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
