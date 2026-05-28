@@ -1,306 +1,188 @@
-# Habit Tracker MVP
+# Habit Tracker
 
-Минимальный MVP: **C# ASP.NET Core backend** хранит бизнес-логику и данные, а **Go integration service** отвечает за Telegram, email и доставку уведомлений.
+Habit Tracker - учебное API-приложение для отслеживания привычек. Пользователь создает привычки, задает цель выполнения, отмечает выполнение по дням, смотрит статистику и получает напоминания через отдельную Go-интеграцию с Telegram.
 
-## Что входит
+## Что реализовано
 
-### C# backend
+- REST API на ASP.NET Core 8.
+- Swagger UI для проверки всех endpoint'ов.
+- Пользователи с привязкой к Telegram ID.
+- CRUD для привычек.
+- Цель выполнения: daily / weekly и `targetCountPerPeriod`.
+- Отметка выполнения привычки по дате.
+- Удаление отметки за конкретный день.
+- Статистика за период: количество отметок, процент выполнения, текущая серия, максимальная серия.
+- Endpoint для напоминаний: привычки с заданным временем, которые еще не выполнены за день.
+- Go-интеграция с Telegram Bot API.
+- Docker Compose для запуска API и Go-интеграции.
+- Демоданные, чтобы проект сразу открывался и проверялся.
+- Базовый xUnit-тест для расчета статистики.
 
-- Пользователи.
-- Привычки.
-- Выполнение привычек за дату.
-- Подсчёт `currentStreak` и `bestStreak`.
-- Генерация notification jobs.
-- Единый формат ошибок.
-- SQLite через EF Core.
-- Swagger.
-- Unit-тесты для streak, duplicate completion и генерации уведомлений.
-
-### Go service
-
-- Telegram-команды: `/start`, `/habits`, `/done`, `/done 1`, `/stats`, `/new Drink water`.
-- HTTP-клиент к C# backend.
-- Polling pending notifications из C#.
-- Отправка Telegram и email.
-- Дополнительные HTTP endpoints:
-  - `GET /health`
-  - `POST /api/notifications/telegram`
-  - `POST /api/notifications/email`
-
-## Архитектура
+## Структура проекта
 
 ```text
-[Telegram User]
-      |
-      v
-[Go Telegram Bot + Email Service]
-      |
-      | HTTP JSON
-      v
-[C# ASP.NET Core Backend]
-      |
-      v
-[SQLite Database]
+backend/HabitTracker.Api/       ASP.NET Core API
+backend/HabitTracker.Tests/     базовые тесты
+integration-go/                 Go-интеграция с Telegram
+HabitTracker.http               готовые HTTP-запросы для IDE
+.env.example                    пример переменных окружения
+docker-compose.yml              запуск проекта в Docker
 ```
 
-C# — source of truth. Go не считает streak и не хранит основную бизнес-логику.
+## Быстрый запуск через Docker
 
-## Структура
-
-```text
-habit-tracker-mvp/
-  backend/
-    Dockerfile
-    src/
-      HabitTracker.Domain/
-      HabitTracker.Application/
-      HabitTracker.Infrastructure/
-      HabitTracker.Api/
-    tests/
-      HabitTracker.Tests/
-  integration-go/
-    cmd/bot/
-    internal/config/
-    internal/email/
-    internal/habitapi/
-    internal/notifications/
-    internal/server/
-    internal/telegram/
-  docker-compose.yml
-  .env.example
-```
-
-
-## Важное исправление для Docker на Windows
-
-В `backend/.dockerignore` обязательно должны быть исключены `bin/` и `obj/`. Иначе Docker может скопировать внутрь Linux-контейнера локальные .NET артефакты, созданные на Windows, и `dotnet publish` упадёт с ошибкой вида:
-
-```text
-Unable to find fallback package folder 'C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages'
-```
-
-Если ошибка уже появлялась, можно также удалить локальные артефакты перед повторной сборкой:
-
-```powershell
-Get-ChildItem -Recurse -Directory -Include bin,obj | Remove-Item -Recurse -Force
-docker compose build --no-cache
-docker compose up
-```
-
-## Настройка переменных окружения
-
-Скопируйте пример:
-
-```powershell
-copy .env.example .env
-```
-
-Для Linux/macOS:
+1. Скопировать файл переменных окружения:
 
 ```bash
 cp .env.example .env
 ```
 
-В `.env` укажите `TELEGRAM_BOT_TOKEN`, если нужен настоящий Telegram polling. Без токена Go-сервис всё равно запустит HTTP endpoints и worker, но Telegram polling будет отключён.
+2. Вставить токен Telegram-бота в `.env`:
 
-## Запуск через Docker Compose
+```env
+TELEGRAM_BOT_TOKEN=ваш_токен
+```
+
+Если токен не указать, `integration-go` запустится в режиме проверки backend и не будет подключаться к Telegram.
+
+3. Запустить проект:
 
 ```bash
 docker compose up --build
 ```
 
-После запуска:
+4. Открыть Swagger:
 
 ```text
-Backend Swagger: http://localhost:5000/swagger
-Go health:       http://localhost:8081/health
+http://localhost:8080/swagger
 ```
 
-## Запуск C# backend вручную
+5. Проверить health endpoint:
 
-```powershell
-cd backend
-dotnet restore src/HabitTracker.Api/HabitTracker.Api.csproj
-dotnet run --project src/HabitTracker.Api/HabitTracker.Api.csproj --urls "http://localhost:5000"
+```text
+http://localhost:8080/health
 ```
 
-Swagger:
+## Быстрый запуск без Telegram
+
+```bash
+docker compose up --build habittracker-api
+```
+
+Swagger будет доступен по адресу:
+
+```text
+http://localhost:8080/swagger
+```
+
+## Демопользователь
+
+В проекте есть демопользователь:
+
+```text
+userId: 11111111-1111-1111-1111-111111111111
+telegramUserId: 100001
+username: demo
+```
+
+Демопривычки:
+
+```text
+Пить воду: 22222222-2222-2222-2222-222222222222
+Читать 20 минут: 33333333-3333-3333-3333-333333333333
+```
+
+## Основные endpoint'ы
+
+```text
+GET    /health
+GET    /api/users
+POST   /api/users
+GET    /api/users/{id}
+GET    /api/users/by-telegram/{telegramUserId}
+GET    /api/users/{userId}/habits
+POST   /api/users/{userId}/habits
+GET    /api/habits/{habitId}
+PUT    /api/habits/{habitId}
+PATCH  /api/habits/{habitId}/archive?isArchived=true
+DELETE /api/habits/{habitId}
+POST   /api/habits/{habitId}/completions
+GET    /api/habits/{habitId}/completions
+DELETE /api/habits/{habitId}/completions/{date}
+GET    /api/users/{userId}/stats
+GET    /api/reminders/due?time=09:00
+POST   /api/demo/reset
+```
+
+## Команды Telegram-бота
+
+```text
+/start - регистрация пользователя и справка
+/help - список команд
+/habits - список привычек
+/add <название> - создать привычку
+/done <habitId> - отметить выполнение привычки
+/stats - статистика за 30 дней
+```
+
+## Локальный запуск backend без Docker
+
+Нужен .NET SDK 8.
+
+```bash
+cd backend/HabitTracker.Api
+dotnet restore
+dotnet run
+```
+
+API будет доступно по адресу, который покажет `dotnet run`. Для Swagger обычно используется:
 
 ```text
 http://localhost:5000/swagger
 ```
 
-## Запуск тестов C#
-
-```powershell
-cd backend
-dotnet test tests/HabitTracker.Tests/HabitTracker.Tests.csproj
-```
-
-## Запуск Go service вручную
-
-PowerShell on Windows:
-
-```powershell
-cd integration-go
-$env:BACKEND_URL="http://localhost:5000"
-$env:GO_HTTP_ADDR=":8081"
-$env:TELEGRAM_BOT_TOKEN="your-token"
-go run ./cmd/bot
-```
-
-Bash/macOS/Linux:
-
-```bash
-cd integration-go
-export BACKEND_URL="http://localhost:5000"
-export GO_HTTP_ADDR=":8081"
-export TELEGRAM_BOT_TOKEN="your-token"
-go run ./cmd/bot
-```
-
-Если токен не задан, Telegram polling отключается, но `GET /health`, отправка email/telegram через HTTP endpoints и notification worker остаются доступны.
-
-## Email настройки
-
-PowerShell:
-
-```powershell
-$env:SMTP_HOST="smtp.example.com"
-$env:SMTP_PORT="587"
-$env:SMTP_USERNAME="user@example.com"
-$env:SMTP_PASSWORD="password"
-$env:EMAIL_FROM="user@example.com"
-```
-
-Bash/macOS/Linux:
-
-```bash
-export SMTP_HOST="smtp.example.com"
-export SMTP_PORT="587"
-export SMTP_USERNAME="user@example.com"
-export SMTP_PASSWORD="password"
-export EMAIL_FROM="user@example.com"
-```
-
-Если SMTP не настроен, email-сервис выводит письмо в консоль. Это удобно для демонстрации.
-
-## Минимальный сценарий проверки через Swagger
-
-1. Создать пользователя:
-
-```http
-POST /api/users
-```
-
-```json
-{
-  "name": "Ivan",
-  "email": "ivan@mail.com",
-  "telegramChatId": "123456789"
-}
-```
-
-2. Создать привычку:
-
-```http
-POST /api/habits
-```
-
-```json
-{
-  "userId": "USER_ID_FROM_STEP_1",
-  "title": "Drink water",
-  "description": "Drink 2 liters of water",
-  "reminderTime": "09:00",
-  "notifyInTelegram": true,
-  "notifyByEmail": true
-}
-```
-
-3. Получить привычки пользователя:
-
-```http
-GET /api/users/{userId}/habits
-```
-
-4. Отметить привычку выполненной:
-
-```http
-POST /api/habits/{habitId}/completions
-```
-
-```json
-{
-  "date": "2026-05-18"
-}
-```
-
-5. Получить статистику:
-
-```http
-GET /api/habits/{habitId}/stats
-```
-
-6. Получить уведомления, которые пора отправить:
-
-```http
-GET /api/notification-jobs/due?before=2026-05-18T09:01:00Z
-```
-
-## Основные C# endpoints
+или
 
 ```text
-GET  /health
-POST /api/users
-GET  /api/users/by-telegram/{telegramChatId}
-POST /api/habits
-GET  /api/users/{userId}/habits
-POST /api/habits/{habitId}/completions
-GET  /api/habits/{habitId}/stats
-GET  /api/notification-jobs/due
-POST /api/notification-jobs/{jobId}/sent
-POST /api/notification-jobs/{jobId}/failed
+http://localhost:8080/swagger
 ```
 
-## Основные Go endpoints
+## Локальный запуск Go-интеграции
 
-```text
-GET  /health
-POST /api/notifications/telegram
-POST /api/notifications/email
-```
-
-## Что добавлено для ревью
-
-Проект доработан под критерии оценивания:
-
-- слои: Domain, Application, Infrastructure, Api в backend и отдельные пакеты в Go service;
-- абстракции: валидаторы входных DTO, фабрика сообщений уведомлений, интерфейсы отправителей, интерфейс `HTTPDoer` для backend-клиента;
-- тесты: backend unit-тесты и Go unit-тесты для config, habitapi, server, telegram handler и notification worker;
-- управление зависимостями: ASP.NET Core DI в backend и конструкторная инъекция зависимостей в Go;
-- обработка ошибок: `ApiExceptionMiddleware` в backend, `APIError` в Go-клиенте, единый формат ошибок в Go HTTP endpoints.
-
-План коммитов лежит в `docs/review-commit-plan.md`.
-
-## Полная проверка перед пушем
-
-Backend:
-
-```bash
-cd backend
-dotnet test tests/HabitTracker.Tests/HabitTracker.Tests.csproj
-```
-
-Go integration:
+Нужен Go 1.23.
 
 ```bash
 cd integration-go
-go test ./...
+set BACKEND_URL=http://localhost:8080
+set TELEGRAM_BOT_TOKEN=ваш_токен
+go run .
 ```
 
-Docker:
+Для PowerShell:
+
+```powershell
+$env:BACKEND_URL="http://localhost:8080"
+$env:TELEGRAM_BOT_TOKEN="ваш_токен"
+go run .
+```
+
+## Тесты
 
 ```bash
-docker compose up --build
+dotnet test backend/HabitTracker.Tests
 ```
+
+## Что не коммитить
+
+- `.env`
+- реальные токены Telegram
+- локальные файлы данных из `App_Data`
+- папки `bin/`, `obj/`
+
+## Как сбросить демоданные
+
+```http
+POST http://localhost:8080/api/demo/reset
+```
+
+Этот endpoint нужен только для учебного демо и проверки проекта.
