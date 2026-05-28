@@ -78,6 +78,14 @@ func (f *fakeHabitAPI) CompleteHabit(ctx context.Context, habitID string, date s
 	return &habitapi.CompleteHabitResponse{HabitID: habitID, Date: date, CurrentStreak: 1}, nil
 }
 
+func (f *fakeHabitAPI) UndoHabitCompletion(ctx context.Context, habitID string, date string) (*habitapi.CompleteHabitResponse, error) {
+	return &habitapi.CompleteHabitResponse{HabitID: habitID, Date: date, CurrentStreak: 0}, nil
+}
+
+func (f *fakeHabitAPI) ArchiveHabit(ctx context.Context, habitID string) error {
+	return nil
+}
+
 func (f *fakeHabitAPI) GetHabitStats(ctx context.Context, habitID string) (*habitapi.HabitStats, error) {
-	return &habitapi.HabitStats{HabitID: habitID, CurrentStreak: 1, BestStreak: 1}, nil
+	return &habitapi.HabitStats{HabitID: habitID, CurrentStreak: 1, BestStreak: 1, CompletionRate: 100}, nil
 }

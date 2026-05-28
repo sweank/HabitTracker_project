@@ -16,6 +16,8 @@ type HabitAPI interface {
 	CreateHabit(ctx context.Context, request habitapi.CreateHabitRequest) (*habitapi.CreateHabitResponse, error)
 	GetUserHabits(ctx context.Context, userID string) ([]habitapi.Habit, error)
 	CompleteHabit(ctx context.Context, habitID string, date string) (*habitapi.CompleteHabitResponse, error)
+	UndoHabitCompletion(ctx context.Context, habitID string, date string) (*habitapi.CompleteHabitResponse, error)
+	ArchiveHabit(ctx context.Context, habitID string) error
 	GetHabitStats(ctx context.Context, habitID string) (*habitapi.HabitStats, error)
 }
 
@@ -39,12 +41,16 @@ func (h *CommandHandler) Handle(ctx context.Context, message Message) string {
 		return h.handleHabits(ctx, chatID)
 	case "/done":
 		return h.handleDone(ctx, chatID, arg)
+	case "/undo":
+		return h.handleUndo(ctx, chatID, arg)
+	case "/archive":
+		return h.handleArchive(ctx, chatID, arg)
 	case "/stats":
 		return h.handleStats(ctx, chatID)
 	case "/new":
 		return h.handleNew(ctx, chatID, arg)
 	default:
-		return "Команды: /start, /habits, /done, /done 1, /stats, /new Drink water"
+		return "Команды: /start, /habits, /done 1, /undo 1, /archive 1, /stats, /new Название"
 	}
 }
 
@@ -59,9 +65,13 @@ func (h *CommandHandler) handleStart(ctx context.Context, chatID string, name st
 	}
 
 	user, err = h.api.CreateUser(ctx, habitapi.CreateUserRequest{
-		Name:           name,
-		Email:          "telegram" + chatID + "@example.local",
-		TelegramChatID: chatID,
+		Name:                         name,
+		Email:                        "telegram" + chatID + "@example.local",
+		TelegramChatID:               chatID,
+		NotificationsEnabled:         true,
+		TelegramNotificationsEnabled: true,
+		EmailNotificationsEnabled:    false,
+		DefaultReminderTime:          "09:00",
 	})
 	if err != nil {
 		return "Не удалось зарегистрировать пользователя: " + err.Error()
@@ -71,8 +81,7 @@ func (h *CommandHandler) handleStart(ctx context.Context, chatID string, name st
 }
 
 func (h *CommandHandler) handleHabits(ctx context.Context, chatID string) string {
-	user, habits, err := h.getUserAndHabits(ctx, chatID)
-	_ = user
+	_, habits, err := h.getUserAndHabits(ctx, chatID)
 	if err != nil {
 		return err.Error()
 	}
@@ -91,22 +100,52 @@ func (h *CommandHandler) handleDone(ctx context.Context, chatID string, arg stri
 		return "Привычек пока нет. Создай привычку: /new Drink water"
 	}
 
-	if strings.TrimSpace(arg) == "" {
-		return "Выбери номер привычки:\n" + formatHabits(habits) + "\nНапример: /done 1"
-	}
-
-	index, err := strconv.Atoi(strings.TrimSpace(arg))
-	if err != nil || index < 1 || index > len(habits) {
-		return "Неверный номер привычки. Напиши /done, чтобы увидеть список."
+	index, errorMessage := parseHabitIndex(arg, habits, "/done 1")
+	if errorMessage != "" {
+		return errorMessage
 	}
 
 	date := time.Now().Format("2006-01-02")
-	result, err := h.api.CompleteHabit(ctx, habits[index-1].ID, date)
+	result, err := h.api.CompleteHabit(ctx, habits[index].ID, date)
 	if err != nil {
 		return "Не удалось отметить привычку: " + err.Error()
 	}
 
-	return fmt.Sprintf("Готово: %s. Текущий streak: %d", habits[index-1].Title, result.CurrentStreak)
+	return fmt.Sprintf("Готово: %s. Текущий streak: %d", habits[index].Title, result.CurrentStreak)
+}
+
+func (h *CommandHandler) handleUndo(ctx context.Context, chatID string, arg string) string {
+	_, habits, err := h.getUserAndHabits(ctx, chatID)
+	if err != nil {
+		return err.Error()
+	}
+	index, errorMessage := parseHabitIndex(arg, habits, "/undo 1")
+	if errorMessage != "" {
+		return errorMessage
+	}
+
+	date := time.Now().Format("2006-01-02")
+	result, err := h.api.UndoHabitCompletion(ctx, habits[index].ID, date)
+	if err != nil {
+		return "Не удалось отменить отметку: " + err.Error()
+	}
+	return fmt.Sprintf("Отметка отменена: %s. Текущий streak: %d", habits[index].Title, result.CurrentStreak)
+}
+
+func (h *CommandHandler) handleArchive(ctx context.Context, chatID string, arg string) string {
+	_, habits, err := h.getUserAndHabits(ctx, chatID)
+	if err != nil {
+		return err.Error()
+	}
+	index, errorMessage := parseHabitIndex(arg, habits, "/archive 1")
+	if errorMessage != "" {
+		return errorMessage
+	}
+
+	if err := h.api.ArchiveHabit(ctx, habits[index].ID); err != nil {
+		return "Не удалось архивировать привычку: " + err.Error()
+	}
+	return "Привычка архивирована: " + habits[index].Title
 }
 
 func (h *CommandHandler) handleStats(ctx context.Context, chatID string) string {
@@ -126,7 +165,7 @@ func (h *CommandHandler) handleStats(ctx context.Context, chatID string) string 
 			builder.WriteString(fmt.Sprintf("%d. %s — ошибка статистики: %v\n", i+1, habit.Title, err))
 			continue
 		}
-		builder.WriteString(fmt.Sprintf("%d. %s — current: %d, best: %d\n", i+1, habit.Title, stats.CurrentStreak, stats.BestStreak))
+		builder.WriteString(fmt.Sprintf("%d. %s — current: %d, best: %d, completion: %.1f%%\n", i+1, habit.Title, stats.CurrentStreak, stats.BestStreak, stats.CompletionRate))
 	}
 	return strings.TrimSpace(builder.String())
 }
@@ -145,6 +184,7 @@ func (h *CommandHandler) handleNew(ctx context.Context, chatID string, title str
 		UserID:           user.ID,
 		Title:            strings.TrimSpace(title),
 		Description:      "Created from Telegram",
+		Category:         "telegram",
 		ReminderTime:     "09:00",
 		NotifyInTelegram: true,
 		NotifyByEmail:    false,
@@ -167,6 +207,20 @@ func (h *CommandHandler) getUserAndHabits(ctx context.Context, chatID string) (*
 	return user, habits, nil
 }
 
+func parseHabitIndex(arg string, habits []habitapi.Habit, example string) (int, string) {
+	if len(habits) == 0 {
+		return 0, "Привычек пока нет. Создай привычку: /new Drink water"
+	}
+	if strings.TrimSpace(arg) == "" {
+		return 0, "Выбери номер привычки:\n" + formatHabits(habits) + "\nНапример: " + example
+	}
+	index, err := strconv.Atoi(strings.TrimSpace(arg))
+	if err != nil || index < 1 || index > len(habits) {
+		return 0, "Неверный номер привычки. Напиши /habits, чтобы увидеть список."
+	}
+	return index - 1, ""
+}
+
 func formatHabits(habits []habitapi.Habit) string {
 	var builder strings.Builder
 	for i, habit := range habits {
@@ -174,7 +228,11 @@ func formatHabits(habits []habitapi.Habit) string {
 		if habit.IsCompletedToday {
 			status = "выполнено сегодня"
 		}
-		builder.WriteString(fmt.Sprintf("%d. %s — streak: %d, %s\n", i+1, habit.Title, habit.CurrentStreak, status))
+		category := habit.Category
+		if category == "" {
+			category = "general"
+		}
+		builder.WriteString(fmt.Sprintf("%d. [%s] %s — streak: %d, %s\n", i+1, category, habit.Title, habit.CurrentStreak, status))
 	}
 	return strings.TrimSpace(builder.String())
 }
