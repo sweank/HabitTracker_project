@@ -20,7 +20,7 @@ public sealed class HabitServiceTests
         var completions = new FakeCompletionRepository();
         var unitOfWork = new FakeUnitOfWork();
         var notifications = new FakeNotificationJobService();
-        var service = new HabitService(users, habits, completions, notifications, new StreakCalculator(), new FixedDateTimeProvider(), unitOfWork);
+        var service = new HabitService(users, habits, completions, notifications, new StreakCalculator(), new FixedDateTimeProvider(), unitOfWork, new NoopValidator<CreateHabitRequest>());
 
         await service.CompleteAsync(habit.Id, new CompleteHabitRequest(new DateOnly(2026, 5, 18)));
 
@@ -28,6 +28,13 @@ public sealed class HabitServiceTests
 
         await act.Should().ThrowAsync<AppException>()
             .Where(e => e.ErrorCode == "HABIT_ALREADY_COMPLETED_TODAY");
+    }
+
+    private sealed class NoopValidator<T> : IInputValidator<T>
+    {
+        public void Validate(T value)
+        {
+        }
     }
 
     private sealed class FixedDateTimeProvider : IDateTimeProvider

@@ -61,8 +61,10 @@ type NotificationJob struct {
 }
 
 type APIError struct {
-	ErrorCode string `json:"errorCode"`
-	Message   string `json:"message"`
+	ErrorCode  string `json:"errorCode"`
+	Message    string `json:"message"`
+	TraceID    string `json:"traceId,omitempty"`
+	StatusCode int    `json:"-"`
 }
 
 func (e APIError) Error() string {
