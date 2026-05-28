@@ -9,24 +9,21 @@ public sealed class UserService : IUserService
 {
     private readonly IUserRepository _users;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IInputValidator<CreateUserRequest> _createUserValidator;
 
-    public UserService(IUserRepository users, IUnitOfWork unitOfWork)
+    public UserService(
+        IUserRepository users,
+        IUnitOfWork unitOfWork,
+        IInputValidator<CreateUserRequest> createUserValidator)
     {
         _users = users;
         _unitOfWork = unitOfWork;
+        _createUserValidator = createUserValidator;
     }
 
     public async Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw AppException.BadRequest("INVALID_USER_NAME", "User name is required");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.TelegramChatId))
-        {
-            throw AppException.BadRequest("INVALID_TELEGRAM_CHAT_ID", "Telegram chat id is required");
-        }
+        _createUserValidator.Validate(request);
 
         var existing = await _users.GetByTelegramChatIdAsync(request.TelegramChatId, cancellationToken);
         if (existing is not null)
@@ -37,7 +34,7 @@ public sealed class UserService : IUserService
         var user = new User
         {
             Name = request.Name.Trim(),
-            Email = request.Email.Trim(),
+            Email = request.Email?.Trim() ?? string.Empty,
             TelegramChatId = request.TelegramChatId.Trim()
         };
 
