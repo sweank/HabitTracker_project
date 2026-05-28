@@ -89,6 +89,23 @@ func (c *Client) CompleteHabit(ctx context.Context, habitID string, date string)
 	return &result, nil
 }
 
+func (c *Client) UndoHabitCompletion(ctx context.Context, habitID string, date string) (*CompleteHabitResponse, error) {
+	path := "/api/habits/" + url.PathEscape(habitID) + "/completions"
+	if strings.TrimSpace(date) != "" {
+		path += "?date=" + url.QueryEscape(date)
+	}
+	var result CompleteHabitResponse
+	err := c.do(ctx, http.MethodDelete, path, nil, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) ArchiveHabit(ctx context.Context, habitID string) error {
+	return c.do(ctx, http.MethodPost, "/api/habits/"+url.PathEscape(habitID)+"/archive", nil, nil)
+}
+
 func (c *Client) GetHabitStats(ctx context.Context, habitID string) (*HabitStats, error) {
 	var result HabitStats
 	err := c.do(ctx, http.MethodGet, "/api/habits/"+url.PathEscape(habitID)+"/stats", nil, &result)

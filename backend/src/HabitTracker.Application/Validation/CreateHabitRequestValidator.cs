@@ -24,6 +24,11 @@ public sealed class CreateHabitRequestValidator : IInputValidator<CreateHabitReq
             failures.Add(new ValidationFailure(nameof(value.Title), "Habit title must be shorter than 120 characters"));
         }
 
+        if (value.Category is { Length: > 80 })
+        {
+            failures.Add(new ValidationFailure(nameof(value.Category), "Category must be shorter than 80 characters"));
+        }
+
         if (!TimeOnly.TryParse(value.ReminderTime, out _))
         {
             failures.Add(new ValidationFailure(nameof(value.ReminderTime), "Reminder time must have HH:mm format"));

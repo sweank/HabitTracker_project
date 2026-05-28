@@ -43,7 +43,7 @@ public sealed class NotificationJobService : INotificationJobService
 
     public async Task CreateJobsForHabitAsync(Habit habit, User user, DateOnly date, CancellationToken cancellationToken = default)
     {
-        if (!habit.IsActive)
+        if (!habit.IsActive || !user.NotificationsEnabled)
         {
             return;
         }
@@ -51,12 +51,12 @@ public sealed class NotificationJobService : INotificationJobService
         var scheduledAt = date.ToDateTime(habit.ReminderTime, DateTimeKind.Utc);
         var text = _messageFactory.BuildHabitReminder(habit, user);
 
-        if (habit.NotifyInTelegram && !string.IsNullOrWhiteSpace(user.TelegramChatId))
+        if (habit.NotifyInTelegram && user.TelegramNotificationsEnabled && !string.IsNullOrWhiteSpace(user.TelegramChatId))
         {
             await AddIfMissingAsync(habit, user, NotificationChannel.Telegram, user.TelegramChatId, text, scheduledAt, cancellationToken);
         }
 
-        if (habit.NotifyByEmail && !string.IsNullOrWhiteSpace(user.Email))
+        if (habit.NotifyByEmail && user.EmailNotificationsEnabled && !string.IsNullOrWhiteSpace(user.Email))
         {
             await AddIfMissingAsync(habit, user, NotificationChannel.Email, user.Email, text, scheduledAt, cancellationToken);
         }

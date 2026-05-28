@@ -30,9 +30,19 @@ public sealed class UsersController : ControllerBase
         return Ok(await _users.GetByTelegramChatIdAsync(telegramChatId, cancellationToken));
     }
 
-    [HttpGet("{userId:guid}/habits")]
-    public async Task<ActionResult<IReadOnlyList<HabitListItemResponse>>> GetHabits(Guid userId, CancellationToken cancellationToken)
+    [HttpPut("{userId:guid}/notification-settings")]
+    public async Task<ActionResult<UserResponse>> UpdateNotificationSettings(Guid userId, UpdateUserNotificationSettingsRequest request, CancellationToken cancellationToken)
     {
-        return Ok(await _habits.GetUserHabitsAsync(userId, cancellationToken));
+        return Ok(await _users.UpdateNotificationSettingsAsync(userId, request, cancellationToken));
+    }
+
+    [HttpGet("{userId:guid}/habits")]
+    public async Task<ActionResult<IReadOnlyList<HabitListItemResponse>>> GetHabits(
+        Guid userId,
+        [FromQuery] string? category,
+        [FromQuery] bool includeArchived,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _habits.GetUserHabitsAsync(userId, category, includeArchived, cancellationToken));
     }
 }

@@ -10,15 +10,18 @@ public sealed class UserService : IUserService
     private readonly IUserRepository _users;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IInputValidator<CreateUserRequest> _createUserValidator;
+    private readonly IInputValidator<UpdateUserNotificationSettingsRequest> _notificationSettingsValidator;
 
     public UserService(
         IUserRepository users,
         IUnitOfWork unitOfWork,
-        IInputValidator<CreateUserRequest> createUserValidator)
+        IInputValidator<CreateUserRequest> createUserValidator,
+        IInputValidator<UpdateUserNotificationSettingsRequest> notificationSettingsValidator)
     {
         _users = users;
         _unitOfWork = unitOfWork;
         _createUserValidator = createUserValidator;
+        _notificationSettingsValidator = notificationSettingsValidator;
     }
 
     public async Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
@@ -35,7 +38,11 @@ public sealed class UserService : IUserService
         {
             Name = request.Name.Trim(),
             Email = request.Email?.Trim() ?? string.Empty,
-            TelegramChatId = request.TelegramChatId.Trim()
+            TelegramChatId = request.TelegramChatId.Trim(),
+            NotificationsEnabled = request.NotificationsEnabled,
+            TelegramNotificationsEnabled = request.TelegramNotificationsEnabled,
+            EmailNotificationsEnabled = request.EmailNotificationsEnabled,
+            DefaultReminderTime = TimeOnly.Parse(request.DefaultReminderTime)
         };
 
         await _users.AddAsync(user, cancellationToken);
@@ -51,5 +58,29 @@ public sealed class UserService : IUserService
         return ToResponse(user);
     }
 
-    private static UserResponse ToResponse(User user) => new(user.Id, user.Name, user.Email, user.TelegramChatId);
+    public async Task<UserResponse> UpdateNotificationSettingsAsync(Guid userId, UpdateUserNotificationSettingsRequest request, CancellationToken cancellationToken = default)
+    {
+        _notificationSettingsValidator.Validate(request);
+
+        var user = await _users.GetByIdAsync(userId, cancellationToken)
+                   ?? throw AppException.NotFound("USER_NOT_FOUND", "User was not found");
+
+        user.NotificationsEnabled = request.NotificationsEnabled;
+        user.TelegramNotificationsEnabled = request.TelegramNotificationsEnabled;
+        user.EmailNotificationsEnabled = request.EmailNotificationsEnabled;
+        user.DefaultReminderTime = TimeOnly.Parse(request.DefaultReminderTime);
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return ToResponse(user);
+    }
+
+    private static UserResponse ToResponse(User user) => new(
+        user.Id,
+        user.Name,
+        user.Email,
+        user.TelegramChatId,
+        user.NotificationsEnabled,
+        user.TelegramNotificationsEnabled,
+        user.EmailNotificationsEnabled,
+        user.DefaultReminderTime.ToString("HH:mm"));
 }
