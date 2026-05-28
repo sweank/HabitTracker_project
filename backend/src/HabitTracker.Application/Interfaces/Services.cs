@@ -31,3 +31,9 @@ public interface IStreakCalculator
     int CalculateCurrentStreak(IEnumerable<DateOnly> completedDates, DateOnly today);
     int CalculateBestStreak(IEnumerable<DateOnly> completedDates);
 }
+
+public interface INotificationMessageFactory
+{
+    string BuildHabitReminder(Habit habit, User user);
+    string BuildEmailSubject(Habit habit);
+}
