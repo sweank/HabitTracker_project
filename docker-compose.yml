@@ -1,34 +1,30 @@
 services:
-  backend:
+  habittracker-api:
     build:
-      context: ./backend
+      context: ./backend/HabitTracker.Api
       dockerfile: Dockerfile
-    ports:
-      - "5000:8080"
+    container_name: habittracker-api
     environment:
-      ASPNETCORE_URLS: "http://+:8080"
-      ConnectionStrings__Default: "Data Source=/app/data/habittracker.db"
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      DATA_FILE: /app/data/habittracker.json
+    ports:
+      - "8080:8080"
     volumes:
-      - backend_data:/app/data
+      - habittracker-data:/app/data
 
   integration-go:
     build:
       context: ./integration-go
       dockerfile: Dockerfile
-    ports:
-      - "8081:8081"
-    environment:
-      BACKEND_URL: "http://backend:8080"
-      GO_HTTP_ADDR: ":8081"
-      POLL_INTERVAL_SECONDS: "30"
-      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
-      SMTP_HOST: "${SMTP_HOST:-}"
-      SMTP_PORT: "${SMTP_PORT:-587}"
-      SMTP_USERNAME: "${SMTP_USERNAME:-}"
-      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
-      EMAIL_FROM: "${EMAIL_FROM:-habit-tracker@example.local}"
+    container_name: habittracker-integration-go
     depends_on:
-      - backend
+      - habittracker-api
+    environment:
+      BACKEND_URL: http://habittracker-api:8080
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_POLL_TIMEOUT_SECONDS: 25
+    restart: unless-stopped
 
 volumes:
-  backend_data:
+  habittracker-data:
