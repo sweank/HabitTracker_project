@@ -25,18 +25,32 @@ public sealed class ApiExceptionMiddleware
         {
             await WriteErrorAsync(context, exception.StatusCode, exception.ErrorCode, exception.Message);
         }
+        catch (BadHttpRequestException exception)
+        {
+            _logger.LogWarning(exception, "Invalid HTTP request");
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, "INVALID_HTTP_REQUEST", exception.Message);
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            _logger.LogWarning("Request was cancelled by client");
+        }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Unhandled API error");
-            await WriteErrorAsync(context, 500, "INTERNAL_ERROR", "Internal server error");
+            await WriteErrorAsync(context, StatusCodes.Status500InternalServerError, "INTERNAL_ERROR", "Internal server error");
         }
     }
 
     private static async Task WriteErrorAsync(HttpContext context, int statusCode, string errorCode, string message)
     {
+        if (context.Response.HasStarted)
+        {
+            return;
+        }
+
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
-        var json = JsonSerializer.Serialize(new ErrorResponse(errorCode, message), new JsonSerializerOptions
+        var json = JsonSerializer.Serialize(new ErrorResponse(errorCode, message, context.TraceIdentifier), new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
