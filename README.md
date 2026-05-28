@@ -270,3 +270,37 @@ GET  /health
 POST /api/notifications/telegram
 POST /api/notifications/email
 ```
+
+## Что добавлено для ревью
+
+Проект доработан под критерии оценивания:
+
+- слои: Domain, Application, Infrastructure, Api в backend и отдельные пакеты в Go service;
+- абстракции: валидаторы входных DTO, фабрика сообщений уведомлений, интерфейсы отправителей, интерфейс `HTTPDoer` для backend-клиента;
+- тесты: backend unit-тесты и Go unit-тесты для config, habitapi, server, telegram handler и notification worker;
+- управление зависимостями: ASP.NET Core DI в backend и конструкторная инъекция зависимостей в Go;
+- обработка ошибок: `ApiExceptionMiddleware` в backend, `APIError` в Go-клиенте, единый формат ошибок в Go HTTP endpoints.
+
+План коммитов лежит в `docs/review-commit-plan.md`.
+
+## Полная проверка перед пушем
+
+Backend:
+
+```bash
+cd backend
+dotnet test tests/HabitTracker.Tests/HabitTracker.Tests.csproj
+```
+
+Go integration:
+
+```bash
+cd integration-go
+go test ./...
+```
+
+Docker:
+
+```bash
+docker compose up --build
+```

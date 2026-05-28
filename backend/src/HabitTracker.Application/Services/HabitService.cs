@@ -14,6 +14,7 @@ public sealed class HabitService : IHabitService
     private readonly IStreakCalculator _streakCalculator;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IInputValidator<CreateHabitRequest> _createHabitValidator;
 
     public HabitService(
         IUserRepository users,
@@ -22,7 +23,8 @@ public sealed class HabitService : IHabitService
         INotificationJobService notificationJobs,
         IStreakCalculator streakCalculator,
         IDateTimeProvider dateTimeProvider,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IInputValidator<CreateHabitRequest> createHabitValidator)
     {
         _users = users;
         _habits = habits;
@@ -31,28 +33,23 @@ public sealed class HabitService : IHabitService
         _streakCalculator = streakCalculator;
         _dateTimeProvider = dateTimeProvider;
         _unitOfWork = unitOfWork;
+        _createHabitValidator = createHabitValidator;
     }
 
     public async Task<HabitResponse> CreateAsync(CreateHabitRequest request, CancellationToken cancellationToken = default)
     {
+        _createHabitValidator.Validate(request);
+
         var user = await _users.GetByIdAsync(request.UserId, cancellationToken)
                    ?? throw AppException.NotFound("USER_NOT_FOUND", "User was not found");
 
-        if (string.IsNullOrWhiteSpace(request.Title))
-        {
-            throw AppException.BadRequest("INVALID_HABIT_TITLE", "Habit title is required");
-        }
-
-        if (!TimeOnly.TryParse(request.ReminderTime, out var reminderTime))
-        {
-            throw AppException.BadRequest("INVALID_REMINDER_TIME", "Reminder time must have HH:mm format");
-        }
+        var reminderTime = TimeOnly.Parse(request.ReminderTime);
 
         var habit = new Habit
         {
             UserId = user.Id,
             Title = request.Title.Trim(),
-            Description = request.Description.Trim(),
+            Description = request.Description?.Trim() ?? string.Empty,
             ReminderTime = reminderTime,
             NotifyInTelegram = request.NotifyInTelegram,
             NotifyByEmail = request.NotifyByEmail,

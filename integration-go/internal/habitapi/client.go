@@ -12,17 +12,37 @@ import (
 	"time"
 )
 
-type Client struct {
-	baseURL    string
-	httpClient *http.Client
+type HTTPDoer interface {
+	Do(req *http.Request) (*http.Response, error)
 }
 
-func NewClient(baseURL string) *Client {
-	return &Client{
+type ClientOption func(*Client)
+
+type Client struct {
+	baseURL    string
+	httpClient HTTPDoer
+}
+
+func NewClient(baseURL string, options ...ClientOption) *Client {
+	client := &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+	}
+
+	for _, option := range options {
+		option(client)
+	}
+
+	return client
+}
+
+func WithHTTPClient(httpClient HTTPDoer) ClientOption {
+	return func(client *Client) {
+		if httpClient != nil {
+			client.httpClient = httpClient
+		}
 	}
 }
 
@@ -95,44 +115,53 @@ func (c *Client) MarkNotificationFailed(ctx context.Context, jobID string, reaso
 }
 
 func (c *Client) do(ctx context.Context, method string, path string, requestBody any, responseBody any) error {
+	if strings.TrimSpace(c.baseURL) == "" {
+		return fmt.Errorf("backend base url is empty")
+	}
+
 	var body io.Reader
 	if requestBody != nil {
 		payload, err := json.Marshal(requestBody)
 		if err != nil {
-			return err
+			return fmt.Errorf("marshal request: %w", err)
 		}
 		body = bytes.NewReader(payload)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
 	if err != nil {
-		return err
+		return fmt.Errorf("build backend request: %w", err)
 	}
 	if requestBody != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("backend request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("read backend response: %w", err)
 	}
 
 	if resp.StatusCode >= 400 {
 		var apiErr APIError
-		if err := json.Unmarshal(data, &apiErr); err != nil || apiErr.Message == "" {
-			return fmt.Errorf("backend returned %s: %s", resp.Status, string(data))
+		if err := json.Unmarshal(data, &apiErr); err == nil && apiErr.Message != "" {
+			apiErr.StatusCode = resp.StatusCode
+			return apiErr
 		}
-		return apiErr
+		return fmt.Errorf("backend returned %s: %s", resp.Status, strings.TrimSpace(string(data)))
 	}
 
 	if responseBody == nil || len(data) == 0 {
 		return nil
 	}
-	return json.Unmarshal(data, responseBody)
+	if err := json.Unmarshal(data, responseBody); err != nil {
+		return fmt.Errorf("decode backend response: %w", err)
+	}
+	return nil
 }
