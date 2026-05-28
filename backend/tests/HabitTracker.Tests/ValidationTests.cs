@@ -29,4 +29,16 @@ public sealed class ValidationTests
         act.Should().Throw<AppException>()
             .Where(e => e.ErrorCode == "VALIDATION_ERROR" && e.Message.Contains("ReminderTime"));
     }
+
+    [Fact]
+    public void UpdateUserNotificationSettingsRequestValidator_ShouldRejectInvalidDefaultReminderTime()
+    {
+        var validator = new UpdateUserNotificationSettingsRequestValidator();
+
+        var act = () => validator.Validate(new UpdateUserNotificationSettingsRequest(true, true, false, "99:99"));
+
+        act.Should().Throw<AppException>()
+            .Where(e => e.ErrorCode == "VALIDATION_ERROR" && e.Message.Contains("DefaultReminderTime"));
+    }
+
 }

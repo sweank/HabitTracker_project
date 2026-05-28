@@ -1,24 +1,35 @@
 package habitapi
 
 type User struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	TelegramChatID string `json:"telegramChatId"`
+	ID                           string `json:"id"`
+	Name                         string `json:"name"`
+	Email                        string `json:"email"`
+	TelegramChatID               string `json:"telegramChatId"`
+	NotificationsEnabled         bool   `json:"notificationsEnabled"`
+	TelegramNotificationsEnabled bool   `json:"telegramNotificationsEnabled"`
+	EmailNotificationsEnabled    bool   `json:"emailNotificationsEnabled"`
+	DefaultReminderTime          string `json:"defaultReminderTime"`
 }
 
 type CreateUserRequest struct {
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	TelegramChatID string `json:"telegramChatId"`
+	Name                         string `json:"name"`
+	Email                        string `json:"email"`
+	TelegramChatID               string `json:"telegramChatId"`
+	NotificationsEnabled         bool   `json:"notificationsEnabled"`
+	TelegramNotificationsEnabled bool   `json:"telegramNotificationsEnabled"`
+	EmailNotificationsEnabled    bool   `json:"emailNotificationsEnabled"`
+	DefaultReminderTime          string `json:"defaultReminderTime"`
 }
 
 type Habit struct {
 	ID               string `json:"id"`
 	Title            string `json:"title"`
 	Description      string `json:"description"`
+	Category         string `json:"category"`
 	CurrentStreak    int    `json:"currentStreak"`
 	IsCompletedToday bool   `json:"isCompletedToday"`
+	IsActive         bool   `json:"isActive"`
+	IsArchived       bool   `json:"isArchived"`
 }
 
 type CreateHabitRequest struct {
@@ -28,6 +39,7 @@ type CreateHabitRequest struct {
 	ReminderTime     string `json:"reminderTime"`
 	NotifyInTelegram bool   `json:"notifyInTelegram"`
 	NotifyByEmail    bool   `json:"notifyByEmail"`
+	Category         string `json:"category"`
 }
 
 type CreateHabitResponse struct {
@@ -45,10 +57,15 @@ type CompleteHabitResponse struct {
 }
 
 type HabitStats struct {
-	HabitID        string   `json:"habitId"`
-	CurrentStreak  int      `json:"currentStreak"`
-	BestStreak     int      `json:"bestStreak"`
-	CompletedDates []string `json:"completedDates"`
+	HabitID          string   `json:"habitId"`
+	Period           string   `json:"period"`
+	CurrentStreak    int      `json:"currentStreak"`
+	BestStreak       int      `json:"bestStreak"`
+	CompletionRate   float64  `json:"completionRate"`
+	CompletedDays    int      `json:"completedDays"`
+	MissedDays       int      `json:"missedDays"`
+	TotalTrackedDays int      `json:"totalTrackedDays"`
+	CompletedDates   []string `json:"completedDates"`
 }
 
 type NotificationJob struct {

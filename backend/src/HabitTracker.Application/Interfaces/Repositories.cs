@@ -12,16 +12,18 @@ public interface IUserRepository
 public interface IHabitRepository
 {
     Task AddAsync(Habit habit, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Habit habit, CancellationToken cancellationToken = default);
     Task<Habit?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<Habit>> GetUserHabitsAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Habit>> GetUserHabitsAsync(Guid userId, string? category = null, bool includeArchived = false, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Habit>> GetActiveHabitsWithUsersAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IHabitCompletionRepository
 {
     Task AddAsync(HabitCompletion completion, CancellationToken cancellationToken = default);
+    Task RemoveAsync(Guid habitId, DateOnly date, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(Guid habitId, DateOnly date, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<HabitCompletion>> GetByHabitIdAsync(Guid habitId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<HabitCompletion>> GetByHabitIdAsync(Guid habitId, CancellationToken cancellationToken = default, DateOnly? from = null, DateOnly? to = null);
 }
 
 public interface INotificationJobRepository

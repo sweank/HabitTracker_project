@@ -18,7 +18,11 @@ public static class DbInitializer
         {
             Name = "Demo User",
             Email = "demo@example.local",
-            TelegramChatId = "123456789"
+            TelegramChatId = "123456789",
+            NotificationsEnabled = true,
+            TelegramNotificationsEnabled = true,
+            EmailNotificationsEnabled = true,
+            DefaultReminderTime = new TimeOnly(9, 0)
         };
 
         var habit = new Habit
@@ -26,10 +30,12 @@ public static class DbInitializer
             User = user,
             Title = "Drink water",
             Description = "Drink 2 liters of water",
+            Category = "health",
             ReminderTime = new TimeOnly(9, 0),
             NotifyInTelegram = true,
             NotifyByEmail = true,
-            IsActive = true
+            IsActive = true,
+            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
         };
 
         dbContext.Users.Add(user);

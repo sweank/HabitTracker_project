@@ -24,6 +24,11 @@ public sealed class CreateUserRequestValidator : IInputValidator<CreateUserReque
             failures.Add(new ValidationFailure(nameof(value.Email), "Email must contain @"));
         }
 
+        if (!TimeOnly.TryParse(value.DefaultReminderTime, out _))
+        {
+            failures.Add(new ValidationFailure(nameof(value.DefaultReminderTime), "Default reminder time must have HH:mm format"));
+        }
+
         failures.ThrowIfInvalid();
     }
 }

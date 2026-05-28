@@ -13,9 +13,12 @@ public static class DependencyInjection
     {
         services.AddScoped<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddScoped<IStreakCalculator, StreakCalculator>();
+        services.AddScoped<ICompletionStatisticsCalculator, CompletionStatisticsCalculator>();
         services.AddScoped<INotificationMessageFactory, NotificationMessageFactory>();
         services.AddScoped<IInputValidator<CreateUserRequest>, CreateUserRequestValidator>();
+        services.AddScoped<IInputValidator<UpdateUserNotificationSettingsRequest>, UpdateUserNotificationSettingsRequestValidator>();
         services.AddScoped<IInputValidator<CreateHabitRequest>, CreateHabitRequestValidator>();
+        services.AddScoped<IInputValidator<UpdateHabitRequest>, UpdateHabitRequestValidator>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IHabitService, HabitService>();
         services.AddScoped<INotificationJobService, NotificationJobService>();
